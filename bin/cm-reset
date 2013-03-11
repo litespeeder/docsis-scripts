@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+IPADDR=$1
+
+echo ""
+echo "### DOCS-CABLE-DEVICE-MIB::docsDevResetNow - .1.3.6.1.2.1.69.1.1.3.0 ###"
+echo ""
+snmpset -v2c -c private -m all -On $IPADDR .1.3.6.1.2.1.69.1.1.3.0 i 1
+echo ""
+
+exit $?

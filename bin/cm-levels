@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+CMTS_SNMP_COMMUNITY=public
+CM_SNMP_COMMUNITY=private
+
+usage()
+{
+cat << EOF
+usage: $0 options
+
+This script gets Cable Modem RF and SNR levels.
+
+OPTIONS:
+    -h          Show this message
+    -r ipaddr   CMTS IP address
+    -k text     CMTS SNMP Community (default: ${CMTS_SNMP_COMMUNITY})
+    -m mac      CM MAC address
+    -c text     CM SNMP Community (default: ${CM_SNMP_COMMUNITY})
+
+EOF
+}
+
+while getopts “hr:k:m:c:” OPTION
+do
+    case $OPTION in
+        h)
+            usage
+            exit 1
+            ;;
+        r)
+            CMTS_IPADDR=$OPTARG
+            ;;
+        k)
+            CMTS_SNMP_COMMUNITY=$OPTARG
+            ;;
+        m)
+            CM_MAC=`echo "$OPTARG" | tr '[:upper:]' '[:lower:]' | sed -e 's,[^a-f0-9],,g'`
+            CM_MAC_OID=`printf "%d.%d.%d.%d.%d.%d" 0x${CM_MAC:0:2} 0x${CM_MAC:2:2} 0x${CM_MAC:4:2} 0x${CM_MAC:6:2} 0x${CM_MAC:8:2} 0x${CM_MAC:10:2}`
+            ;;
+        c)
+            CM_SNMP_COMMUNITY=$OPTARG
+            ;;
+        ?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [ "no${CMTS_IPADDR}" == "no" ] || [ "no${CM_MAC}" == "no" ] || [ "no${CMTS_SNMP_COMMUNITY}" == "no" ]; then
+    usage
+    exit 1
+fi
+
+# Loading OIDs
+CM_INDEX_OID=".1.3.6.1.2.1.10.127.1.3.7.1.2.${CM_MAC_OID}"
+CM_INDEX=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_INDEX_OID}`
+
+CM_IPADDR_OID=".1.3.6.1.2.1.10.127.1.3.3.1.3.${CM_INDEX}"
+CM_RF_DS_OID=".1.3.6.1.2.1.10.127.1.1.1.1.6.3"
+CM_RF_US_OID=".1.3.6.1.2.1.10.127.1.2.2.1.3.2"
+CM_SNR_DS_OID=".1.3.6.1.2.1.10.127.1.1.4.1.5.3"
+CM_SNR_US_OID=".1.3.6.1.2.1.10.127.1.3.3.1.13.${CM_INDEX}"
+
+# Reading Values
+CM_IP4ADDR=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_IPADDR_OID}`
+CM_IP6ADDR=
+
+if [ "no${CM_IP4ADDR}" != "no" ]; then
+    CM_IPADDR=${CM_IP4ADDR}
+else
+    echo "ERROR: Could not retreive Cable Modem IP address. Exiting..."
+    exit 2
+fi
+
+CM_RF_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq ${CM_IPADDR} ${CM_RF_DS_OID} 2>/dev/null`
+CM_RF_US=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq ${CM_IPADDR} ${CM_RF_US_OID} 2>/dev/null`
+CM_SNR_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq ${CM_IPADDR} ${CM_SNR_DS_OID} 2>/dev/null`
+CM_SNR_US=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_SNR_US_OID} 2>/dev/null`
+
+# Print Results
+echo ""
+echo "### Cable Modem ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4} Levels ###"
+echo ""
+echo "Cable Modem IP address:   ${CM_IP4ADDR}"
+echo "Downstream Power Level:   ${CM_RF_DS:-N/A}"
+echo "Upstream Power Level:     ${CM_RF_US:-N/A}"
+echo "Downstream SNR:           ${CM_SNR_DS:-N/A}"
+echo "Upstream SNR:             ${CM_SNR_US:-N/A}"
+echo ""
+
+exit $?

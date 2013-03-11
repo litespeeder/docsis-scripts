@@ -90,4 +90,4 @@ echo "Downstream SNR:           ${CM_SNR_DS:-N/A}"
 echo "Upstream SNR:             ${CM_SNR_US:-N/A}"
 echo ""
 
-exit $?
+exit 0

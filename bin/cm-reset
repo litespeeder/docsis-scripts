@@ -51,4 +51,4 @@ echo ""
 snmpset -v2c -c "${CM_SNMP_COMMUNITY}" -m all -On ${CM_IPADDR} ${CM_RESETNOW_OID} i 1
 echo ""
 
-exit $?
+exit 0

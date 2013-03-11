@@ -1,11 +1,54 @@
 #!/usr/bin/env bash
 
-IPADDR=$1
+CM_SNMP_COMMUNITY=private
+
+usage()
+{
+cat << EOF
+usage: $0 options
+
+This script reboots a Cable Modem.
+More scripts at https://github.com/martinclaro/docsis-scripts/
+
+OPTIONS:
+    -h          Show this message
+    -i ipaddr   CM IP address
+    -c text     CM SNMP Community (default: ${CM_SNMP_COMMUNITY})
+
+EOF
+}
+
+while getopts “hi:c:” OPTION
+do
+    case $OPTION in
+        h)
+            usage
+            exit 1
+            ;;
+        i)
+            CM_IPADDR=$OPTARG
+            ;;
+        c)
+            CM_SNMP_COMMUNITY=$OPTARG
+            ;;
+        ?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [ "no${CM_IPADDR}" == "no" ]; then
+    usage
+    exit 1
+fi
+
+CM_RESETNOW_OID=".1.3.6.1.2.1.69.1.1.3.0"
 
 echo ""
-echo "### DOCS-CABLE-DEVICE-MIB::docsDevResetNow - .1.3.6.1.2.1.69.1.1.3.0 ###"
+echo "### DOCS-CABLE-DEVICE-MIB::docsDevResetNow - ${CM_RESETNOW_OID} ###"
 echo ""
-snmpset -v2c -c private -m all -On $IPADDR .1.3.6.1.2.1.69.1.1.3.0 i 1
+snmpset -v2c -c "${CM_SNMP_COMMUNITY}" -m all -On ${CM_IPADDR} ${CM_RESETNOW_OID} i 1
 echo ""
 
 exit $?

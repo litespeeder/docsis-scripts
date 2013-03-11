@@ -9,6 +9,7 @@ cat << EOF
 usage: $0 options
 
 This script gets Cable Modem RF and SNR levels.
+More scripts at https://github.com/martinclaro/docsis-scripts/
 
 OPTIONS:
     -h          Show this message

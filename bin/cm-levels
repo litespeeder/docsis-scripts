@@ -74,20 +74,20 @@ else
     exit 2
 fi
 
-CM_RF_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq ${CM_IPADDR} ${CM_RF_DS_OID} 2>/dev/null`
-CM_RF_US=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq ${CM_IPADDR} ${CM_RF_US_OID} 2>/dev/null`
-CM_SNR_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq ${CM_IPADDR} ${CM_SNR_DS_OID} 2>/dev/null`
-CM_SNR_US=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_SNR_US_OID} 2>/dev/null`
+CM_RF_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_RF_DS_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+CM_RF_US=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_RF_US_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+CM_SNR_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_SNR_DS_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+CM_SNR_US=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPADDR} ${CM_SNR_US_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
 
 # Print Results
 echo ""
 echo "### Cable Modem ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4} Levels ###"
 echo ""
 echo "Cable Modem IP address:   ${CM_IP4ADDR}"
-echo "Downstream Power Level:   ${CM_RF_DS:-N/A}"
-echo "Upstream Power Level:     ${CM_RF_US:-N/A}"
-echo "Downstream SNR:           ${CM_SNR_DS:-N/A}"
-echo "Upstream SNR:             ${CM_SNR_US:-N/A}"
+echo "Downstream Power Level:   ${CM_RF_DS:-N/A} dBmV"
+echo "Upstream Power Level:     ${CM_RF_US:-N/A} TenthdBmV"
+echo "Downstream SNR:           ${CM_SNR_DS:-N/A} TenthdB"
+echo "Upstream SNR:             ${CM_SNR_US:-N/A} TenthdB"
 echo ""
 
 exit 0

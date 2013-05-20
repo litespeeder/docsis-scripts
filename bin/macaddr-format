@@ -39,8 +39,7 @@ fi
 
 # Showtime
 CM_MAC_F1=`printf "%s:%s:%s:%s:%s:%s" ${CM_MAC:0:2} ${CM_MAC:2:2} ${CM_MAC:4:2} ${CM_MAC:6:2} ${CM_MAC:8:2} ${CM_MAC:10:2}`
-CM_MAC_F2=`printf "%s%s.%s%s.%s%s" ${CM_MAC:0:2} ${CM_MAC:2:2} ${CM_MAC:4:2} ${CM_MAC:6:2} ${CM_MAC:8:2} ${CM_MAC:10:2}`
-
+CM_MAC_F2=`printf "%s.%s.%s" ${CM_MAC:0:4} ${CM_MAC:4:4} ${CM_MAC:8:4}`
 CM_MAC_OID=`printf "%d.%d.%d.%d.%d.%d" 0x${CM_MAC:0:2} 0x${CM_MAC:2:2} 0x${CM_MAC:4:2} 0x${CM_MAC:6:2} 0x${CM_MAC:8:2} 0x${CM_MAC:10:2}`
 
 cat << EOF

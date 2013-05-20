@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+usage()
+{
+cat << EOF
+usage: $0 options
+
+This script format a given MAC address to different formats.
+More scripts at https://github.com/martinclaro/docsis-scripts/
+
+OPTIONS:
+    -h          Show this message
+    -m mac      MAC address
+
+EOF
+}
+
+while getopts “hm:” OPTION
+do
+    case $OPTION in
+        h)
+            usage
+            exit 1
+            ;;
+        m)
+            CM_MAC=`echo "$OPTARG" | tr '[:upper:]' '[:lower:]' | sed -e 's,[^a-f0-9],,g'`
+            ;;
+        ?)
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [ "no${CM_MAC}" == "no" ]; then
+    usage
+    exit 1
+fi
+
+# Showtime
+CM_MAC_F1=`printf "%s:%s:%s:%s:%s:%s" ${CM_MAC:0:2} ${CM_MAC:2:2} ${CM_MAC:4:2} ${CM_MAC:6:2} ${CM_MAC:8:2} ${CM_MAC:10:2}`
+CM_MAC_F2=`printf "%s%s.%s%s.%s%s" ${CM_MAC:0:2} ${CM_MAC:2:2} ${CM_MAC:4:2} ${CM_MAC:6:2} ${CM_MAC:8:2} ${CM_MAC:10:2}`
+
+CM_MAC_OID=`printf "%d.%d.%d.%d.%d.%d" 0x${CM_MAC:0:2} 0x${CM_MAC:2:2} 0x${CM_MAC:4:2} 0x${CM_MAC:6:2} 0x${CM_MAC:8:2} 0x${CM_MAC:10:2}`
+
+cat << EOF
+
+MAC 1...: ${CM_MAC_F1}
+MAC 2...: ${CM_MAC_F2}
+OID.....: ${CM_MAC_OID}
+
+EOF
+
+exit 0

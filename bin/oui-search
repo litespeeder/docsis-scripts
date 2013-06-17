@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+usage()
+{
+cat << EOF
+usage: $0 <oui>
+
+This script retrieves OUI information from IEEE.org website.
+More scripts at https://github.com/martinclaro/docsis-scripts/
+
+EOF
+}
+
+OUI=`echo "${1}" | tr '[:upper:]' '[:lower:]' | sed -e 's,[^a-f0-9],,g'`
+
+if [ "x${OUI}" == "x" ]; then
+    usage
+    exit 1
+fi
+
+TMP=`mktemp /tmp/oui-search.XXXXXX`
+
+curl --request POST \
+    --data "x=${OUI}&submit2=Search" \
+    -o "${TMP}" \
+    --silent \
+    http://standards.ieee.org/cgi-bin/ouisearch
+
+cat "${TMP}" | sed -e :a -e 's/<[^>]*>//g;/</N;//ba'
+rm -f "${TMP}"
+
+exit 0

@@ -51,7 +51,7 @@ SNMP_OID_IFTYPE=".1.3.6.1.2.1.2.2.1.3"                  # RFC1213-MIB::ifType
 SNMP_OID_PHYADDR_BASE=".1.3.6.1.2.1.2.2.1.6"            # RFC1213-MIB::ifPhysAddress
 
 # MAC address
-CM_IFINDEX=`snmpbulkwalk -v 2c -c "$CM_SNMP_COMMUNITY" -m all -t $CM_SNMP_TIMEOUT -r $CM_SNMP_RETRIES -OnU -Ih -m all ${CM_IPADDR} ${SNMP_OID_IFTYPE} | grep ' 127$' | awk '{print $1}' | sed -e 's,^[0-9\.]*\([0-9]\),\1,g'`
+CM_IFINDEX=`snmpbulkwalk -v 2c -c "$CM_SNMP_COMMUNITY" -m all -t $CM_SNMP_TIMEOUT -r $CM_SNMP_RETRIES -OnU -Ih -m all ${CM_IPADDR} ${SNMP_OID_IFTYPE} | egrep ' 127$|\(127\)$' | awk '{print $1}' | sed -e 's,^[0-9\.]*\([0-9]\),\1,g'`
 CM_MAC=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -Ih -Onvq -m all -t $CM_SNMP_TIMEOUT -r $CM_SNMP_RETRIES ${CM_IPADDR} ${SNMP_OID_PHYADDR_BASE}.${CM_IFINDEX} | tr '[:upper:]' '[:lower:]' | sed -e 's,[^a-f0-9],,g'`
 
 # Get Vendor / Model / Firmware from CM

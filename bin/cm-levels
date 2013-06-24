@@ -55,7 +55,12 @@ fi
 
 # Loading OIDs
 CM_INDEX_OID=".1.3.6.1.2.1.10.127.1.3.7.1.2.${CM_MAC_OID}"
-CM_INDEX=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_INDEX_OID}`
+CM_INDEX=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_INDEX_OID} | sed -e 's,[^0-9],,g'`
+
+if [ "no${CM_INDEX}" == "no" ]; then
+    echo "ERROR: Could not retreive Cable Modem ifIndex from CMTS. Exiting..."
+    exit 2
+fi
 
 CM_IPADDR_OID=".1.3.6.1.2.1.10.127.1.3.3.1.3.${CM_INDEX}"
 CM_RF_DS_OID=".1.3.6.1.2.1.10.127.1.1.1.1.6.3"
@@ -71,7 +76,7 @@ if [ "no${CM_IP4ADDR}" != "no" ]; then
     CM_IPADDR=${CM_IP4ADDR}
 else
     echo "ERROR: Could not retreive Cable Modem IP address. Exiting..."
-    exit 2
+    exit 3
 fi
 
 CM_RF_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_RF_DS_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`

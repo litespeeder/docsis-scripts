@@ -21,7 +21,7 @@ OPTIONS:
 EOF
 }
 
-while getopts “hr:k:m:c:” OPTION
+while getopts “hr:k:m:c:f” OPTION
 do
     case $OPTION in
         h)
@@ -41,6 +41,9 @@ do
         c)
             CM_SNMP_COMMUNITY=$OPTARG
             ;;
+        f)
+            CM_READ_FW=1
+            ;;
         ?)
             usage
             exit 1
@@ -54,11 +57,14 @@ if [ "no${CMTS_IPADDR}" == "no" ] || [ "no${CM_MAC}" == "no" ] || [ "no${CMTS_SN
 fi
 
 # Loading OIDs
+SNMP_OID_SW_ADMIN_STATUS=".1.3.6.1.2.1.69.1.3.3.0"      # DOCS-CABLE-DEVICE-MIB::docsDevSwAdminStatus.0
+SNMP_OID_SW_OPER_STATUS=".1.3.6.1.2.1.69.1.3.4.0"       # DOCS-CABLE-DEVICE-MIB::docsDevSwOperStatus.0
+
 CM_INDEX_OID=".1.3.6.1.2.1.10.127.1.3.7.1.2.${CM_MAC_OID}"
 CM_INDEX=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_INDEX_OID} | sed -e 's,[^0-9],,g'`
 
 if [ "no${CM_INDEX}" == "no" ]; then
-    echo "ERROR: Could not retreive Cable Modem ifIndex from CMTS. Exiting..."
+    echo "ERROR: Could not retreive Cable Modem ifIndex from CMTS for ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4}. Exiting..."
     exit 2
 fi
 
@@ -72,10 +78,10 @@ CM_SNR_US_OID=".1.3.6.1.2.1.10.127.1.3.3.1.13.${CM_INDEX}"
 CM_IP4ADDR=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq ${CMTS_IPADDR} ${CM_IPADDR_OID}`
 CM_IP6ADDR=
 
-if [ "no${CM_IP4ADDR}" != "no" ]; then
+if [ "no${CM_IP4ADDR}" != "no" ] && [ "no${CM_IP4ADDR}" != "no0.0.0.0" ]; then
     CM_IPADDR=${CM_IP4ADDR}
 else
-    echo "ERROR: Could not retreive Cable Modem IP address. Exiting..."
+    echo "ERROR: Could not retreive Cable Modem IP address for ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4}. Exiting..."
     exit 3
 fi
 
@@ -87,13 +93,41 @@ CM_SNR_US=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPA
 # Print Results
 cat << EOF
 
-### Cable Modem ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4} Levels ###
+### Cable Modem ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4} ###
 
+### RF/SNR Levels
 Cable Modem IP address:   ${CM_IP4ADDR}
 Downstream Power Level:   ${CM_RF_DS:-N/A} dBmV
 Upstream Power Level:     ${CM_RF_US:-N/A} TenthdBmV
 Downstream SNR:           ${CM_SNR_DS:-N/A} TenthdB
 Upstream SNR:             ${CM_SNR_US:-N/A} TenthdB
+EOF
+
+# Get Vendor / Model / Firmware from CM
+CM_BULK=`snmpbulkget -v 2c -c "${CM_SNMP_COMMUNITY}" -m all -Cr1 -Cn0 -On $CM_IPADDR .1.3.6.1.2.1.1.1 2>&1`
+CM_SYSDESCR=`echo "${CM_BULK}" | grep '.1.3.6.1.2.1.1.1.0' | grep '<<'`
+CM_HWREV=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Hh][Ww]_[Rr][Ee][Vv]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
+CM_VENDOR=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Vv][Ev][Nn][Dd][Oo][Rr]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
+CM_ROM=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Bb][Oo][Oo][Tt][Rr]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
+CM_FIRM=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Ss][Ww]_[Rr][Ee][Vv]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
+CM_MODEL=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Mm][Oo][Dd][Ee][Ll]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
+
+# Status
+SW_ADMIN_STATUS=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -Ih -Onvq -m all ${CM_IPADDR} ${SNMP_OID_SW_ADMIN_STATUS}`
+SW_OPER_STATUS=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -Ih -Onvq -m all ${CM_IPADDR} ${SNMP_OID_SW_OPER_STATUS}`
+
+cat << EOF
+
+### Current Firmware
+Vendor:                   ${CM_VENDOR:-N/A}
+Model:                    ${CM_MODEL:-N/A}
+Hardware Version:         ${CM_HWREV:-N/A}
+Software Version:         ${CM_FIRM:-N/A}
+Boot ROM Version:         ${CM_ROM:-N/A}
+
+### Firmware Management
+Admin Status:             ${SW_ADMIN_STATUS:-N/A}
+Operational Status:       ${SW_OPER_STATUS:-N/A}
 
 EOF
 

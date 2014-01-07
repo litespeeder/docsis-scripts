@@ -256,6 +256,9 @@ CMTS System Description:  ${CMTS_SYSDESCR}
 CMTS System Name:         ${CMTS_SYSNAME}
 CMTS DOCSIS Capability:   ${CMTS_DOCSIS_CAPABILITY}
 
+### Cable Modem
+CM DOCSIS Capability:     ${CM_DOCSIS_CAPABILITY}
+
 EOF
 
 if [ ${CM_D3_BONDING} -eq 0 ] || [ ${CMTS_D3_BONDING} -eq 0 ]; then

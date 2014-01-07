@@ -56,21 +56,27 @@ if [ "no${CMTS_IPADDR}" == "no" ] || [ "no${CM_MAC}" == "no" ] || [ "no${CMTS_SN
     exit 1
 fi
 
+printf "\nLoading information... Please wait... "
+
+# Force to Unload MIBs
+export MIBS=""
+
 # Loading OIDs
 SNMP_SYS_DESCR_OID=".1.3.6.1.2.1.1.1.0"                     # SNMPv2-MIB::sysDescr.0
 SNMP_SYS_OBJECTID_OID=".1.3.6.1.2.1.1.2.0"                  # SNMPv2-MIB::sysObjectID.0
-SNMP_SYS_UPTIME_OID=".1.3.6.1.2.1.1.3.0"                    # DISMAN-EVENT-MIB::sysUpTimeInstance
+SNMP_SYS_UPTIME_OID=".1.3.6.1.2.1.1.3.0"                    # DISMAN-EVENT-MIB::sysUpTimeInstance.0
 SNMP_SYS_CONTACT_OID=".1.3.6.1.2.1.1.4.0"                   # SNMPv2-MIB::sysContact.0
 SNMP_SYS_NAME_OID=".1.3.6.1.2.1.1.5.0"                      # SNMPv2-MIB::sysName.0
 SNMP_SYS_LOCATION_OID=".1.3.6.1.2.1.1.6.0"                  # SNMPv2-MIB::sysLocation.0
-CMTS_DOCSIS_CAPABILITY_OID=".1.3.6.1.2.1.10.127.1.1.5.0"    # DOCS-IF-MIB::docsIfDocsisBaseCapability.0
+DOCSIS_CAPABILITY_OID=".1.3.6.1.2.1.10.127.1.1.5.0"         # DOCS-IF-MIB::docsIfDocsisBaseCapability.0
 CM_SW_ADMIN_STATUS_OID=".1.3.6.1.2.1.69.1.3.3.0"            # DOCS-CABLE-DEVICE-MIB::docsDevSwAdminStatus.0
 CM_SW_OPER_STATUS_OID=".1.3.6.1.2.1.69.1.3.4.0"             # DOCS-CABLE-DEVICE-MIB::docsDevSwOperStatus.0
 
 CMTS_SYSDESCR=`snmpget -v 2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq "${CMTS_IPADDR}" ${SNMP_SYS_DESCR_OID} | head -1`
 CMTS_SYSNAME=`snmpget -v 2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Onvq "${CMTS_IPADDR}" ${SNMP_SYS_NAME_OID}`
 
-CMTS_DOCSIS_CAPABILITY=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU "${CMTS_IPADDR}" "${CMTS_DOCSIS_CAPABILITY_OID}"`
+CMTS_D3_BONDING=0
+CMTS_DOCSIS_CAPABILITY=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU "${CMTS_IPADDR}" "${DOCSIS_CAPABILITY_OID}"`
 case $CMTS_DOCSIS_CAPABILITY in
     docsis10|1)
         CMTS_DOCSIS_CAPABILITY=1.0
@@ -83,12 +89,15 @@ case $CMTS_DOCSIS_CAPABILITY in
         ;;
     docsis30|4)
         CMTS_DOCSIS_CAPABILITY=3.0
+        CMTS_D3_BONDING=1
         ;;
     docsis31|5)
         CMTS_DOCSIS_CAPABILITY=3.1
+        CMTS_D3_BONDING=1
         ;;
     *)
         CMTS_DOCSIS_CAPABILITY=Unknown
+        CMTS_D3_BONDING=1
         ;;
 esac
 
@@ -101,10 +110,18 @@ if [ "no${CM_INDEX}" == "no" ]; then
 fi
 
 CM_IPADDR_OID=".1.3.6.1.2.1.10.127.1.3.3.1.3.${CM_INDEX}"   # DOCS-IF-MIB::docsIfCmtsCmStatusIpAddress.X
+
 CM_RF_DS_OID=".1.3.6.1.2.1.10.127.1.1.1.1.6.3"              # DOCS-IF-MIB::docsIfDownChannelPower.3
+CM_RF_DS_OID_D3=".1.3.6.1.2.1.10.127.1.1.1.1.6"             # DOCS-IF3-MIB::docsIfDownChannelPower.Y
+
 CM_RF_US_OID=".1.3.6.1.2.1.10.127.1.2.2.1.3.2"              # DOCS-IF-MIB::docsIfCmStatusTxPower.2
+CM_RF_US_OID_D3=".1.3.6.1.4.1.4491.2.1.20.1.2.1.1"          # DOCS-IF3-MIB::docsIf3CmStatusUsTxPower.Y
+
 CM_SNR_DS_OID=".1.3.6.1.2.1.10.127.1.1.4.1.5.3"             # DOCS-IF-MIB::docsIfSigQSignalNoise.3
+CM_SNR_DS_OID_D3=".1.3.6.1.2.1.10.127.1.1.4.1.5"            # DOCS-IF-MIB::docsIfSigQSignalNoise.Y
+
 CM_SNR_US_OID=".1.3.6.1.2.1.10.127.1.3.3.1.13.${CM_INDEX}"  # DOCS-IF-MIB::docsIfCmtsCmStatusSignalNoise.X
+CM_SNR_US_OID_D3=".1.3.6.1.4.1.4491.2.1.20.1.4.1.4.${CM_INDEX}"     # DOCS-IF3-MIB::docsIf3CmtsCmUsStatusSignalNoise.X
 
 CM_IP4ADDR_OID_D3=".1.3.6.1.4.1.4491.2.1.20.1.3.1.5.${CM_INDEX}"    # DOCS-IF3-MIB::docsIf3CmtsCmRegStatusIPv4Addr.X
 CM_IP6ADDR_OID_D3=".1.3.6.1.4.1.4491.2.1.20.1.3.1.3.${CM_INDEX}"    # DOCS-IF3-MIB::docsIf3CmtsCmRegStatusIPv6Addr.X
@@ -121,7 +138,7 @@ else
 
     if [ "no${CM_IP4ADDR}" != "no" ] && [ "no${CM_IP4ADDR}" != "no0.0.0.0" ]; then
         CM_IPADDR=${CM_IP4ADDR}
-    elif [ "no${CM_IP6ADDR}" != "no" ] && [ "no${CM_IP6ADDR}" != "no::" ]; then
+    elif [ "no${CM_IP6ADDR}" != "no" ] && [ "no${CM_IP6ADDR}" != "no0:0:0:0:0:0:0:0" ]; then
         CM_IPADDR=udp6:${CM_IP6ADDR}
     else
         echo "ERROR: Could not retreive Cable Modem IP address for ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4}. Exiting..."
@@ -129,17 +146,95 @@ else
     fi
 fi
 
-if [ "no${CM_IP6ADDR}" == "no" ] || [ "no${CM_IP6ADDR}" == "no::" ]; then
+if [ "no${CM_IP4ADDR}" == "no" ] || [ "no${CM_IP4ADDR}" == "no0.0.0.0" ]; then
+    CM_IP4ADDR="No IPv4 Available"
+fi
+if [ "no${CM_IP6ADDR}" == "no" ] || [ "no${CM_IP6ADDR}" == "no0:0:0:0:0:0:0:0" ]; then
     CM_IP6ADDR="No IPv6 Available"
 fi
 
-CM_RF_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_RF_DS_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
-CM_RF_US=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_RF_US_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
-CM_SNR_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_SNR_DS_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
-CM_SNR_US=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPADDR} ${CM_SNR_US_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+CM_RFP_DS_BONDING=0
+CM_RFP_US_BONDING=0
+CM_SNR_DS_BONDING=0
+CM_SNR_US_BONDING=0
+
+CM_D3_BONDING=0
+CM_DOCSIS_CAPABILITY=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU "${CM_IPADDR}" "${DOCSIS_CAPABILITY_OID}"`
+case $CM_DOCSIS_CAPABILITY in
+    docsis10|1)
+        CM_DOCSIS_CAPABILITY=1.0
+        ;;
+    docsis11|3)
+        CM_DOCSIS_CAPABILITY=1.1
+        ;;
+    docsis20|3)
+        CM_DOCSIS_CAPABILITY=2.0
+        ;;
+    docsis30|4)
+        CM_DOCSIS_CAPABILITY=3.0
+        CM_D3_BONDING=1
+        ;;
+    docsis31|5)
+        CM_DOCSIS_CAPABILITY=3.1
+        CM_D3_BONDING=1
+        ;;
+    *)
+        CM_DOCSIS_CAPABILITY=Unknown
+        CM_D3_BONDING=1
+        ;;
+esac
+
+if [ ${CM_D3_BONDING} -eq 0 ]; then
+    CM_RF_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_RF_DS_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+    CM_RF_US=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_RF_US_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+    CM_SNR_DS=`snmpget -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CM_IPADDR} ${CM_SNR_DS_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+    CM_SNR_US=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPADDR} ${CM_SNR_US_OID} | awk '{printf "%0.1f",$1/10}' 2>/dev/null`
+else
+    CM_RF_DS_DA=`snmpgetnext -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CM_IPADDR} ${CM_RF_DS_OID_D3} | grep "^${CM_RF_DS_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+    while [ "no${CM_RF_DS_DA}" != "no" ]; do
+        CM_RFP_DS_BONDING=$[ ${CM_RFP_DS_BONDING} + 1 ]
+        CM_RFP_DS_B[ ${CM_RFP_DS_BONDING} ]=`echo "${CM_RF_DS_DA}" | awk '{printf "%4s",$2}'`
+        CM_RF_DS_OID_D3_LAST=`echo "${CM_RF_DS_DA}" | awk '{print $1}'`
+        CM_RF_DS_DA=`snmpgetnext -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CM_IPADDR} ${CM_RF_DS_OID_D3_LAST} | grep "^${CM_RF_DS_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+    done
+
+    CM_RF_US_DA=`snmpgetnext -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CM_IPADDR} ${CM_RF_US_OID_D3} | grep "^${CM_RF_US_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+    while [ "no${CM_RF_US_DA}" != "no" ]; do
+        CM_RFP_US_BONDING=$[ ${CM_RFP_US_BONDING} + 1 ]
+        CM_RFP_US_B[ ${CM_RFP_US_BONDING} ]=`echo "${CM_RF_US_DA}" | awk '{printf "%4s",$2}'`
+        CM_RF_US_OID_D3_LAST=`echo "${CM_RF_US_DA}" | awk '{print $1}'`
+        CM_RF_US_DA=`snmpgetnext -v2c -c "${CM_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CM_IPADDR} ${CM_RF_US_OID_D3_LAST} | grep "^${CM_RF_US_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+    done
+
+    CM_SNR_DS_DA=`snmpgetnext -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CM_IPADDR} ${CM_SNR_DS_OID_D3} | grep "^${CM_SNR_DS_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+    while [ "no${CM_SNR_DS_DA}" != "no" ]; do
+        CM_SNR_DS_BONDING=$[ ${CM_SNR_DS_BONDING} + 1 ]
+        CM_SNR_DS_B[ ${CM_SNR_DS_BONDING} ]=`echo "${CM_SNR_DS_DA}" | awk '{printf "%4s",$2}'`
+        CM_SNR_DS_OID_D3_LAST=`echo "${CM_SNR_DS_DA}" | awk '{print $1}'`
+        CM_SNR_DS_DA=`snmpgetnext -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CM_IPADDR} ${CM_SNR_DS_OID_D3_LAST} | grep "^${CM_SNR_DS_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+    done
+
+    CM_SNR_US_DA=`snmpgetnext -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CMTS_IPADDR} ${CM_SNR_US_OID_D3} | grep "^${CM_SNR_US_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+    if [ "no${CM_SNR_US_DA}" != "no" ]; then
+        while [ "no${CM_SNR_US_DA}" != "no" ]; do
+            CM_SNR_US_BONDING=$[ ${CM_SNR_US_BONDING} + 1 ]
+            CM_SNR_US_B[ ${CM_SNR_US_BONDING} ]=`echo "${CM_SNR_US_DA}" | awk '{printf "%4s",$2}'`
+            CM_SNR_US_OID_D3_LAST=`echo "${CM_SNR_US_DA}" | awk '{print $1}'`
+            CM_SNR_US_DA=`snmpgetnext -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnqU ${CMTS_IPADDR} ${CM_SNR_US_OID_D3_LAST} | grep "^${CM_SNR_US_OID_D3}\." | grep -vi 'no such' | awk '{printf "%s %0.1f",$1,$2/10}' 2>/dev/null`
+        done
+    else
+        CM_SNR_US_B[1]=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPADDR} ${CM_SNR_US_OID_D3}.1 | awk '{printf "%0.1f",$1/10}' | sed -e 's,^0\.0$,,g' 2>/dev/null`
+        CM_SNR_US_B[2]=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPADDR} ${CM_SNR_US_OID_D3}.2 | awk '{printf "%0.1f",$1/10}' | sed -e 's,^0\.0$,,g' 2>/dev/null`
+        CM_SNR_US_B[3]=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPADDR} ${CM_SNR_US_OID_D3}.3 | awk '{printf "%0.1f",$1/10}' | sed -e 's,^0\.0$,,g' 2>/dev/null`
+        CM_SNR_US_B[4]=`snmpget -v2c -c "${CMTS_SNMP_COMMUNITY}" -m all -Ih -OnvqU ${CMTS_IPADDR} ${CM_SNR_US_OID_D3}.4 | awk '{printf "%0.1f",$1/10}' | sed -e 's,^0\.0$,,g' 2>/dev/null`
+        for I in `seq 1 4`; do
+            CM_SNR_US_B[ $I ]=`echo "${CM_SNR_US_B[ $I ]:-    }" | awk '{printf "%4s",$1}'`
+        done
+    fi
+fi
 
 # Get Vendor / Model / Firmware from CM
-CM_SYSDESCR=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq "${CM_IPADDR}" .1.3.6.1.2.1.1.1.0 | grep '<<'`
+CM_SYSDESCR=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -m all -Onvq "${CM_IPADDR}" .1.3.6.1.2.1.1.1.0 | grep '<<' 2>/dev/null`
 CM_HWREV=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Hh][Ww]_[Rr][Ee][Vv]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
 CM_VENDOR=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Vv][Ev][Nn][Dd][Oo][Rr]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
 CM_ROM=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Bb][Oo][Oo][Tt][Rr]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
@@ -147,12 +242,13 @@ CM_FIRM=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[
 CM_MODEL=`echo "${CM_SYSDESCR}" | sed -e 's,.*<<\(.*\)>>.*,\1,g' | sed -e 's,^.*[Mm][Oo][Dd][Ee][Ll]:,,g' | sed -e 's,;.*$,,g' | sed -e 's,^ ,,g' | sed -e 's, $,,g'`
 
 # Status
-SW_ADMIN_STATUS=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -Ih -Onvq -m all ${CM_IPADDR} ${CM_SW_ADMIN_STATUS_OID}`
-SW_OPER_STATUS=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -Ih -Onvq -m all ${CM_IPADDR} ${CM_SW_OPER_STATUS_OID}`
+SW_ADMIN_STATUS=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -Ih -Onvq -m all ${CM_IPADDR} ${CM_SW_ADMIN_STATUS_OID} 2>/dev/null`
+SW_OPER_STATUS=`snmpget -v 2c -c "${CM_SNMP_COMMUNITY}" -Ih -Onvq -m all ${CM_IPADDR} ${CM_SW_OPER_STATUS_OID} 2>/dev/null`
 
 # Print Results
-cat << EOF
+printf "DONE!\n\n"
 
+cat << EOF
 ### Cable Modem ${CM_MAC:0:4}.${CM_MAC:4:4}.${CM_MAC:8:4} ###
 
 ### CMTS
@@ -160,6 +256,11 @@ CMTS System Description:  ${CMTS_SYSDESCR}
 CMTS System Name:         ${CMTS_SYSNAME}
 CMTS DOCSIS Capability:   ${CMTS_DOCSIS_CAPABILITY}
 
+EOF
+
+if [ ${CM_D3_BONDING} -eq 0 ] || [ ${CMTS_D3_BONDING} -eq 0 ]; then
+
+    cat << EOF
 ### Cable Modem RF/SNR Levels
 Cable Modem IP address:   ${CM_IP4ADDR} / ${CM_IP6ADDR}
 Downstream Power Level:   ${CM_RF_DS:-N/A} dBmV
@@ -167,6 +268,25 @@ Upstream Power Level:     ${CM_RF_US:-N/A} TenthdBmV
 Downstream SNR:           ${CM_SNR_DS:-N/A} TenthdB
 Upstream SNR:             ${CM_SNR_US:-N/A} TenthdB
 
+EOF
+
+else
+
+    cat << EOF
+### Cable Modem RF/SNR Levels
+Cable Modem IP address:   ${CM_IP4ADDR} / ${CM_IP6ADDR}
+
+Channel Bonding:          Ch 1 | Ch 2 | Ch 3 | Ch 4 | Ch 5 | Ch 6 | Ch 7 | Ch 8
+Downstream Power Level:   ${CM_RFP_DS_B[1]:-    } | ${CM_RFP_DS_B[2]:-    } | ${CM_RFP_DS_B[3]:-    } | ${CM_RFP_DS_B[4]:-    } | ${CM_RFP_DS_B[5]:-    } | ${CM_RFP_DS_B[6]:-    } | ${CM_RFP_DS_B[7]:-    } | ${CM_RFP_DS_B[8]:-    } dBmV
+Upstream Power Level:     ${CM_RFP_US_B[1]:-    } | ${CM_RFP_US_B[2]:-    } | ${CM_RFP_US_B[3]:-    } | ${CM_RFP_US_B[4]:-    } | ${CM_RFP_US_B[5]:-    } | ${CM_RFP_US_B[6]:-    } | ${CM_RFP_US_B[7]:-    } | ${CM_RFP_US_B[8]:-    } TenthdBmV
+Downstream SNR:           ${CM_SNR_DS_B[1]:-    } | ${CM_SNR_DS_B[2]:-    } | ${CM_SNR_DS_B[3]:-    } | ${CM_SNR_DS_B[4]:-    } | ${CM_SNR_DS_B[5]:-    } | ${CM_SNR_DS_B[6]:-    } | ${CM_SNR_DS_B[7]:-    } | ${CM_SNR_DS_B[8]:-    } TenthdB
+Upstream SNR:             ${CM_SNR_US_B[1]:-    } | ${CM_SNR_US_B[2]:-    } | ${CM_SNR_US_B[3]:-    } | ${CM_SNR_US_B[4]:-    } | ${CM_SNR_US_B[5]:-    } | ${CM_SNR_US_B[6]:-    } | ${CM_SNR_US_B[7]:-    } | ${CM_SNR_US_B[8]:-    } TenthdB
+
+EOF
+
+fi
+
+cat << EOF
 ### Current Firmware
 Vendor:                   ${CM_VENDOR:-N/A}
 Model:                    ${CM_MODEL:-N/A}
